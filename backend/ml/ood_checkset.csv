@@ -1,0 +1,31 @@
+url,label,note
+https://www.google.com/search?q=test,0,plain benign
+https://github.com/anthropics,0,benign
+https://en.wikipedia.org/wiki/Phishing,0,benign
+https://www.paypal.com/us/signin,0,real paypal
+https://accounts.google.com/ServiceLogin,0,real google login
+https://login.microsoftonline.com/common/oauth2/authorize,0,real ms login
+https://www.chase.com/personal/online-banking,0,real bank
+https://mail.proton.me/u/0/inbox,0,benign webmail
+https://www.amazon.co.uk/gp/css/homepage.html,0,benign
+https://www.dropbox.com/home,0,benign
+https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M,0,benign
+https://stackoverflow.com/questions/tagged/python,0,benign
+http://paypal-secure-login.com/verify,1,typosquat + keywords + http
+http://paypa1.com/webscr?cmd=_login,1,digit homoglyph
+http://185.234.219.12/wellsfargo/login.php,1,ip host + brand path
+https://appleid.apple.com.verify-account.ru/signin,1,brand in subdomain of foreign domain
+http://secure-chase-alert.tk/update,1,abused tld + keywords
+https://www.paypal.com@evil-collector.xyz/login,1,@ trick
+http://xn--pypal-4ve.com/account/verify,1,punycode homograph
+https://bankofamerica.account-verify-online.gq/,1,brand subdomain + bad tld
+http://tinyurl.com/y8x9abcd,1,shortener
+https://microsoft-support-team.confirm-identity.click/login,1,deep sub + keywords
+http://update-your-account-now.dhl-delivery.top/track,1,shipping lure
+https://coinbase-wallet-restore.com/seed,1,crypto lure
+http://www.netflix-billing-update.info/account/payment,1,billing lure
+https://docusign.secure-document-view.link/sign,1,brand + link tld
+http://93.184.216.34/login/citibank/index.htm,1,ip + brand
+https://amaz0n-prime-renewal.com/confirm,1,zero homoglyph
+https://outlook-web-access.mail-recovery.xyz/owa,1,ms lure
+https://www.icloud-find-my-iphone.com.security-check.ru/,1,apple lure foreign

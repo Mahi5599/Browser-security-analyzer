@@ -1,0 +1,33 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Vite (later phases)
+node_modules/
+dist/
+.vite/
+
+# Local DB
+backend/bsa.db
+backend/*.db
+
+# ML artifacts (regenerate with: python -m ml.train_model && python -m ml.evaluate)
+backend/app/models/phishing_model.pkl
+backend/ml/dataset/phiusiil_raw.csv
+backend/ml/dataset/phiusiil_raw.csv.part
+backend/ml/dataset/phiusiil_cache.csv.gz
+backend/ml/dataset/train.csv
+backend/ml/dataset/test.csv
+backend/ml/dataset/sample_urls.csv
+
+# Env / secrets
+.env
+*.local
+
+# OS
+.DS_Store
