@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db.database import init_db
+from .version import APP_VERSION
 from .routers import file_analysis, forensic, tracker_report, url_analysis
 
 
@@ -23,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Browser Security Analyzer",
-    version="0.6.0",
+    version=APP_VERSION,
     description="Phishing / malicious-download / tracker forensics backend.",
     lifespan=lifespan,
 )
@@ -51,6 +52,7 @@ app.add_middleware(
     allow_origins=allowed_origins(),
     allow_methods=["GET", "POST"],
     allow_headers=["content-type"],
+    expose_headers=["X-Report-Data-SHA256", "Content-Disposition"],  # case report download
 )
 
 app.include_router(url_analysis.router)

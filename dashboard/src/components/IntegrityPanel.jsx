@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { buildEvidenceExport, downloadText, shortHash } from "../lib.js";
+import { buildEvidenceExport, caseReportFilename, downloadBlob, downloadText, shortHash } from "../lib.js";
 
 // "Verify log integrity" + "Export evidence". The verify result is shown with
 // both colour AND text/icon so it is readable without relying on colour.
-export default function IntegrityPanel({ api, onVerified }) {
+export default function IntegrityPanel({ api, onVerified, caseIds = [] }) {
   const [state, setState] = useState({ status: "idle" });
   const [exp, setExp] = useState(null);
   const [exportErr, setExportErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [caseId, setCaseId] = useState("");
+  const [examiner, setExaminer] = useState("");
+  const [report, setReport] = useState(null);
+  const [reportErr, setReportErr] = useState(null);
+  const [reportBusy, setReportBusy] = useState(false);
 
   async function verify() {
     setState({ status: "running" });
@@ -41,6 +46,24 @@ export default function IntegrityPanel({ api, onVerified }) {
     }
   }
 
+  async function generateReport() {
+    setReportBusy(true);
+    setReportErr(null);
+    setReport(null);
+    try {
+      const c = caseId.trim();
+      const { blob, sha256 } = await api.caseReport(c, examiner.trim());
+      const filename = caseReportFilename(c);
+      downloadBlob(filename, blob);
+      setReport({ filename, sha256, caseId: c });
+    } catch (e) {
+      setReportErr(e.message);
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
+  const canReport = caseId.trim() !== "" && examiner.trim() !== "" && !reportBusy;
   const r = state.result;
   return (
     <section className="card integrity" aria-labelledby="integrity-h">
@@ -92,6 +115,33 @@ export default function IntegrityPanel({ api, onVerified }) {
           </button>
         </div>
       )}
+
+      <form className="report-form" onSubmit={(e) => { e.preventDefault(); if (canReport) generateReport(); }} aria-label="Case report">
+        <h3>Case report (PDF)</h3>
+        <div className="actions">
+          <label>Case ID{" "}
+            <input value={caseId} onChange={(e) => setCaseId(e.target.value)} list="case-ids" maxLength={128}
+                   placeholder="e.g. DEMO-001" autoComplete="off" />
+          </label>
+          <datalist id="case-ids">{caseIds.map((c) => <option key={c} value={c} />)}</datalist>
+          <label>Examiner{" "}
+            <input value={examiner} onChange={(e) => setExaminer(e.target.value)} maxLength={128}
+                   placeholder="Your name" autoComplete="name" />
+          </label>
+          <button type="submit" disabled={!canReport}>{reportBusy ? "Generating…" : "Generate case report"}</button>
+        </div>
+        {reportErr && <div className="result warn" role="alert"><strong>Report failed</strong><span>{reportErr}</span></div>}
+        {report && (
+          <div className="export" data-testid="report-result">
+            <p>Downloaded <span className="mono">{report.filename}</span></p>
+            <p>SHA-256 of the report's underlying data (also in every page footer):</p>
+            <p className="mono hash" data-testid="report-hash">{report.sha256 ?? "(not exposed by server)"}</p>
+            <p className="muted">Reproduce it with{" "}
+              <span className="mono">curl '{api.base}/forensic-log/report?case_id={encodeURIComponent(report.caseId)}&amp;examiner=…&amp;format=json' | shasum -a 256</span>
+              {" "}(same examiner text, log unchanged). A red <b>INTEGRITY FAILURE</b> banner means the log did not verify.</p>
+          </div>
+        )}
+      </form>
     </section>
   );
 }

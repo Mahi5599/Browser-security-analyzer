@@ -209,10 +209,15 @@ class ForensicLog:
         ``expected_head``: optionally pin the head hash recorded out-of-band;
         a mismatch also catches rollback to an older consistent copy.
         """
-        key = _get_key()
         with self._conn() as c:
             rows = c.execute("SELECT * FROM forensic_log ORDER BY id ASC").fetchall()
             head = c.execute("SELECT * FROM chain_head WHERE id = 1").fetchone()
+        return self._verify_rows(rows, head, expected_head)
+
+    @staticmethod
+    def _verify_rows(rows, head, expected_head: Optional[str] = None) -> dict:
+        """Pure chain check over already-read rows (no database access)."""
+        key = _get_key()
 
         def bad(entry_id, reason, n):
             return {"valid": False, "entries_checked": n, "first_broken_id": entry_id,
@@ -257,6 +262,35 @@ class ForensicLog:
 
         return {"valid": True, "entries_checked": count, "first_broken_id": None,
                 "reason": None, "head_hash": prev}
+
+
+    def report_snapshot(self) -> tuple[list[dict], dict]:
+        """Read-only: every entry plus the verification result of *that same read*.
+
+        One deferred read transaction, so the entries and the verdict about them
+        cannot disagree if another process appends meanwhile. Nothing is written.
+        Rows that were tampered into something unparseable are returned with a
+        placeholder ``details`` (the verification result flags them) instead of raising.
+        """
+        with self._conn() as c:
+            c.execute("BEGIN")
+            rows = c.execute("SELECT * FROM forensic_log ORDER BY id ASC").fetchall()
+            head = c.execute("SELECT * FROM chain_head WHERE id = 1").fetchone()
+            c.execute("COMMIT")
+        verification = self._verify_rows(rows, head)
+        entries = []
+        for r in rows:
+            d = dict(r)
+            raw = d.pop("details_json")
+            try:
+                details = json.loads(raw)
+            except ValueError:
+                details = {"_unparseable_details_json": str(raw)[:300]}
+            if not isinstance(details, dict):
+                details = {"_non_object_details": details}
+            d["details"] = details
+            entries.append(d)
+        return entries, verification
 
 
 # ------------------------------------------------------------------ evidence

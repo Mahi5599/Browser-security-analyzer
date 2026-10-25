@@ -6,6 +6,9 @@ python-dotenv==1.0.1
 httpx==0.28.1  # VirusTotal client (also used by tests)
 SQLAlchemy==2.0.36
 
+# Case report PDF (pulls in Pillow, which ships binary wheels)
+reportlab==5.1.0
+
 # ML
 scikit-learn==1.6.0
 pandas==2.2.3
@@ -22,3 +25,4 @@ ucimlrepo==0.0.7
 
 # Dev / test
 pytest==8.3.4
+pypdf==6.21.2  # extracts text from generated PDFs in tests

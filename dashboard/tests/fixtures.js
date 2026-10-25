@@ -27,6 +27,7 @@ export const makeApi = (over = {}) => ({
   base: "http://api.test",
   allEntries: async () => ({ items: ENTRIES, total: ENTRIES.length, truncated: false }),
   trackers: async () => TRACKERS,
+  caseReport: async () => ({ blob: new Blob(["%PDF-fake"], { type: "application/pdf" }), sha256: "f".repeat(64) }),
   verify: async () => ({ valid: true, entries_checked: 4, first_broken_id: null, reason: null, head_hash: "a".repeat(64) }),
   ...over,
 });

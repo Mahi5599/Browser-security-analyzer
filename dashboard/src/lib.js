@@ -91,8 +91,19 @@ export async function buildEvidenceExport({ entries, verify, apiBase, now = new 
   return { json, sha256, filename, sha256File: `${sha256}  ${filename}\n` };
 }
 
+export const safeFilenamePart = (s) => String(s).replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60).replace(/^[._]+|[._]+$/g, "") || "case";
+
+export function caseReportFilename(caseId, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  return `case-report_${safeFilenamePart(caseId)}_${stamp}.pdf`;
+}
+
 export function downloadText(filename, text, mime = "application/json") {
-  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  downloadBlob(filename, new Blob([text], { type: mime }));
+}
+
+export function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;

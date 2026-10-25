@@ -153,3 +153,99 @@ describe("api client", () => {
     await expect(createApi("http://x", f).verify()).rejects.toThrow(/503.*FORENSIC_HMAC_KEY/);
   });
 });
+
+describe("Case report", () => {
+  let blobs, anchors;
+  beforeEach(() => {
+    blobs = [];
+    anchors = [];
+    URL.createObjectURL = vi.fn((b) => { blobs.push(b); return `blob:${blobs.length}`; });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () { anchors.push(this.download); });
+  });
+  const open = async (api) => {
+    render(<App api={api} />);
+    await screen.findByText("flagged sites");
+    const form = screen.getByRole("form", { name: "Case report" });
+    return {
+      form,
+      caseInput: within(form).getByPlaceholderText("e.g. DEMO-001"),
+      examInput: within(form).getByPlaceholderText("Your name"),
+      button: within(form).getByRole("button", { name: "Generate case report" }),
+    };
+  };
+
+  it("button sits next to Export evidence and stays disabled until case ID and examiner are filled", async () => {
+    const { caseInput, examInput, button } = await open(makeApi());
+    expect(screen.getByRole("button", { name: "Export evidence" })).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    fireEvent.change(caseInput, { target: { value: "DEMO-001" } });
+    expect(button).toBeDisabled();
+    fireEvent.change(examInput, { target: { value: "   " } });
+    expect(button).toBeDisabled();                      // whitespace-only examiner does not count
+    fireEvent.change(examInput, { target: { value: "Dr. A. Examiner" } });
+    expect(button).toBeEnabled();
+  });
+
+  it("offers the case IDs present in the log as suggestions", async () => {
+    await open(makeApi());
+    expect([...document.querySelectorAll("#case-ids option")].map((o) => o.value)).toEqual(["case-1"]);
+  });
+
+  it("sends trimmed values, downloads the PDF with a .pdf name and shows the report-data hash", async () => {
+    const caseReport = vi.fn(async () => ({ blob: new Blob(["%PDF-1.4 fake"], { type: "application/pdf" }), sha256: "ab".repeat(32) }));
+    const { caseInput, examInput, button } = await open(makeApi({ caseReport }));
+    fireEvent.change(caseInput, { target: { value: "  DEMO 001/x  " } });
+    fireEvent.change(examInput, { target: { value: " Dr. A. Examiner " } });
+    fireEvent.click(button);
+    const res = await screen.findByTestId("report-result");
+    expect(caseReport).toHaveBeenCalledWith("DEMO 001/x", "Dr. A. Examiner");
+    expect(blobs).toHaveLength(1);
+    expect(blobs[0].type).toBe("application/pdf");
+    expect(anchors[0]).toMatch(/^case-report_DEMO_001_x_\d{8}T\d{6}Z\.pdf$/);   // path characters can't leak into the filename
+    expect(screen.getByTestId("report-hash")).toHaveTextContent("ab".repeat(32));
+    expect(res).toHaveTextContent("INTEGRITY FAILURE");   // tells the reader what a red banner means
+  });
+
+  it("shows the server's error and downloads nothing when generation fails (e.g. 503 no HMAC key)", async () => {
+    const caseReport = vi.fn(async () => { throw new Error("/forensic-log/report returned 503 — FORENSIC_HMAC_KEY is not set"); });
+    const { caseInput, examInput, button } = await open(makeApi({ caseReport }));
+    fireEvent.change(caseInput, { target: { value: "C1" } });
+    fireEvent.change(examInput, { target: { value: "E" } });
+    fireEvent.click(button);
+    const alert = await screen.findByText("Report failed");
+    expect(alert.closest(".result")).toHaveClass("warn");
+    expect(alert.closest(".result")).toHaveTextContent("FORENSIC_HMAC_KEY");
+    expect(blobs).toHaveLength(0);
+    expect(screen.queryByTestId("report-result")).toBeNull();
+  });
+
+  it("pressing Enter in a field submits when valid", async () => {
+    const caseReport = vi.fn(async () => ({ blob: new Blob(["x"]), sha256: null }));
+    const { form, caseInput, examInput } = await open(makeApi({ caseReport }));
+    fireEvent.change(caseInput, { target: { value: "C1" } });
+    fireEvent.change(examInput, { target: { value: "E" } });
+    fireEvent.submit(form);
+    await screen.findByTestId("report-result");
+    expect(caseReport).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("report-hash")).toHaveTextContent("not exposed");
+  });
+});
+
+describe("api.caseReport", () => {
+  it("URL-encodes parameters, asks for pdf, and returns the blob and hash header", async () => {
+    const f = vi.fn(async () => ({ ok: true, blob: async () => new Blob(["%PDF"]), headers: { get: (h) => (h === "x-report-data-sha256" ? "cd".repeat(32) : null) } }));
+    const out = await createApi("http://x", f).caseReport("A&B c", "Zoë <x>");
+    const url = new URL(f.mock.calls[0][0]);
+    expect(url.pathname).toBe("/forensic-log/report");
+    expect(url.searchParams.get("case_id")).toBe("A&B c");
+    expect(url.searchParams.get("examiner")).toBe("Zoë <x>");
+    expect(url.searchParams.get("format")).toBe("pdf");
+    expect(out.sha256).toBe("cd".repeat(32));
+  });
+
+  it("includes the server's error detail", async () => {
+    const f = vi.fn(async () => ({ ok: false, status: 422, json: async () => ({ detail: "case_id and examiner must not be blank" }) }));
+    await expect(createApi("http://x", f).caseReport("a", "b")).rejects.toThrow(/422.*must not be blank/);
+  });
+});

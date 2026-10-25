@@ -31,6 +31,17 @@ export function createApi(base = DEFAULT_API_BASE, fetchImpl = (...a) => fetch(.
       return { items, total, truncated: total > items.length };
     },
     verify: () => getJson("/forensic-log/verify"),
+    // PDF case report. `sha256` is the report-data hash the server also prints in the PDF footer.
+    async caseReport(caseId, examiner) {
+      const qs = new URLSearchParams({ case_id: caseId, examiner, format: "pdf" });
+      const res = await fetchImpl(`${base}/forensic-log/report?${qs}`);
+      if (!res.ok) {
+        let detail = "";
+        try { const b = await res.json(); detail = b?.detail ? ` — ${typeof b.detail === "string" ? b.detail : JSON.stringify(b.detail)}` : ""; } catch { /* not JSON */ }
+        throw new Error(`/forensic-log/report returned ${res.status}${detail}`);
+      }
+      return { blob: await res.blob(), sha256: res.headers.get("x-report-data-sha256") };
+    },
     trackers: () => getJson("/tracker-report?top=10"),
     health: () => getJson("/health"),
   };

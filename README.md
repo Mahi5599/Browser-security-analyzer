@@ -18,6 +18,7 @@ forensic evidence log** for every flagged event.
 | **4** | Tracking detection (EasyList/EasyPrivacy snapshots, webRequest observer, canvas-fingerprint hook, `/tracker-report`) | ✅ **built** — exercised in real Chrome against a hermetic local test site, not against real websites |
 | **5** | Forensic evidence log (HMAC'd hash chain, `/forensic-log`, `/forensic-log/verify`) | ✅ **built** |
 | **6** | Dashboard (React + Vite), evidence export, CORS lock-down, demo script, docs | ✅ **built** — see [What was tested](#what-was-tested-and-what-was-not) for exactly what ran |
+| + | **Case report** — PDF case report from the forensic log (`GET /forensic-log/report`) + dashboard button | ✅ **built** — see [Case report](#case-report-pdf) and [What was tested](#what-was-tested-and-what-was-not) |
 
 Documentation map: [Architecture](#architecture) · [Quick start](#quick-start) ·
 [Dashboard](#dashboard-phase-6) · [Download scanning](#download-scanning-phase-3) ·
@@ -252,6 +253,7 @@ default `http://127.0.0.1:8000`). No data is stored in the browser.
 | Summary cards (flagged sites / downloads, high-tracking page loads, log size) | `GET /forensic-log` |
 | **Chain of custody**: *Verify log integrity* → green **INTEGRITY VERIFIED** or red **TAMPERING DETECTED** naming the first broken entry (that row is also highlighted in the log table) | `GET /forensic-log/verify` |
 | **Export evidence** → downloads every log entry as one JSON file (with an `export_meta` header: time, entry count, head hash, integrity result at export) and shows the file's **SHA-256**; a *Download .sha256 file* button gives a `shasum -a 256 -c` sidecar | `GET /forensic-log` + `/verify` |
+| **Generate case report** (next to Export evidence): *Case ID* (suggests IDs present in the log) + *Examiner* → downloads the PDF and shows its report-data SHA-256 | `GET /forensic-log/report` |
 | Risk timeline (score vs time, URLs = circles, files = squares, threshold lines) | log entries |
 | Flagged sites / flagged downloads | log entries (`phishing_url`, `malicious_file`) |
 | Top trackers (bar chart) + fingerprinting summary | `GET /tracker-report` |
@@ -610,6 +612,7 @@ hmac       = HMAC-SHA256( FORENSIC_HMAC_KEY, entry_hash )
 | `POST /forensic-log` `{event_type, case_id, details}` | append an entry |
 | `GET /forensic-log?event_type=&since=&until=&limit=&offset=` | paginated, filterable (ISO-8601 times) |
 | `GET /forensic-log/verify[?expected_head=<hash>]` | recompute the whole chain → `{valid, entries_checked, first_broken_id, reason, head_hash}` |
+| `GET /forensic-log/report?case_id=&examiner=[&format=pdf\|json]` | read-only PDF case report (see [Case report](#case-report-pdf)) |
 
 `/analyze-url` accepts an optional `case_id` (default `"default"`) and returns
 `forensic_log_id` (null for benign verdicts, or if logging failed — a logging
@@ -619,6 +622,51 @@ failure is reported in the server log but never blocks the verdict).
 a throwaway DB, edits one row directly in SQLite, shows `/verify` naming the
 first broken entry, then repeats the attack with a recomputed hash to show the
 HMAC still catches it.
+
+### Case report (PDF)
+
+`GET /forensic-log/report?case_id=<id>&examiner=<name>&format=pdf` returns a PDF (`format=json` returns the
+data it is built from). Both parameters are required. The endpoint is **strictly read-only**: it never appends
+to the log, and a test compares the SQLite file byte-for-byte before and after.
+
+| Section | Contents |
+|---|---|
+| Header | title, case ID, examiner, generation time (UTC), tool version, model type / training time / file hash, EasyList + EasyPrivacy versions, Tranco snapshot date |
+| Integrity banner | **green INTEGRITY VERIFIED**, **red INTEGRITY FAILURE** (also repeated in the footer of every page), or **grey LOG IS EMPTY**. A failed verification can never render green |
+| 1. Executive summary | entries in the case, counts by event type and by verdict, fingerprinting sessions |
+| 2. Chain of custody | the `/forensic-log/verify` result: valid / invalid, entries checked (entries intact before the break if invalid), first broken entry, reason, head hash |
+| 3. Evidence | id, UTC timestamp, type, verdict, key details, shortened `entry_hash` — the first broken entry is shaded. At most 1,000 rows are printed (a notice says so; the data hash covers all entries) |
+| 4. Limitations | symmetric HMAC (a key holder can forge), rollback, benign events not logged, verdicts can be wrong, host clock, the hash covers the data not the PDF, no digital signature |
+| Footer | `Report data SHA-256: …` on every page |
+
+**What the footer hash is, exactly.** It is the SHA-256 of the report's underlying data: the bytes returned by
+`format=json` (`json.dumps(data, indent=2, sort_keys=True, ensure_ascii=True)`, UTF-8). The generation time is
+deliberately *not* in that data, so on an unchanged log the same `case_id` + `examiner` always give the same hash. Cross-check:
+
+```bash
+curl -s 'http://127.0.0.1:8000/forensic-log/report?case_id=DEMO-001&examiner=Dr.%20A.%20Examiner&format=json' | shasum -a 256
+```
+
+It also arrives in the `X-Report-Data-SHA256` response header. **It is not the same number as the dashboard's
+*Export evidence* hash** — that file covers the whole log plus an export timestamp, this data covers one case plus
+integrity and version metadata, so the hashes differ by design. What *can* be cross-checked is the content: each entry in the
+report data is field-for-field identical to the entry returned by `/forensic-log` and written by Export evidence
+(tested), including `entry_hash`, `hmac` and the chain `head_hash`. The hash proves the data wasn't changed after the report
+was made; it is not a signature.
+
+Behaviour worth knowing:
+
+- Integrity covers **the whole log** (the hash chain is not per case), so tampering with *another* case's entry
+  still fails every case report, with a note that the scope is the entire log.
+- If `FORENSIC_HMAC_KEY` is missing the endpoint returns **503** instead of a report: without the key the
+  chain cannot be verified, and a report with no verification result would mislead. A wrong key shows as INTEGRITY FAILURE.
+- Entries and the verification result come from **one read transaction**, so a concurrent append cannot make them disagree.
+- A tampered row that is no longer valid JSON still renders (shown as unparseable) — a damaged log gets a failure report, not a 500.
+- **Log text is untrusted.** reportlab's `Paragraph` interprets XML-like markup (`<img src=…>` can make it fetch a URL or
+  read a file), so every log-derived string is escaped, and non-ASCII characters are printed as visible `\uXXXX`
+  escapes (also what an examiner wants for look-alike domains and RTL-override tricks).
+- The PDF uses the built-in Helvetica/Courier fonts, hence the ASCII escaping rather than glyph rendering.
+- Dependency: `reportlab` (pure Python) pulls in **Pillow**, which ships compiled wheels. Tests use `pypdf` to read the PDFs.
 
 ### Limits — what this does *not* protect against
 
@@ -695,9 +743,9 @@ a test fails if a snapshot is edited without rebuilding.
 
 | Suite | Count | Covers |
 |---|---|---|
-| `pytest` (backend) | 91 | URL features/API, forensic chain (valid / modified / deleted / reordered / truncated / forged-without-key), `/analyze-file` heuristics + mocked VirusTotal (cache, 4/min limiter, 429 back-off, never uploads), `/tracker-report` aggregation and forensic logging, CORS allow/deny, manifest-key ↔ CORS-ID match; it also runs the two JS suites below |
+| `pytest` (backend) | 115 | URL features/API, forensic chain (valid / modified / deleted / reordered / truncated / forged-without-key), `/analyze-file` heuristics + mocked VirusTotal (cache, 4/min limiter, 429 back-off, never uploads), `/tracker-report` aggregation and forensic logging, CORS allow/deny, manifest-key ↔ CORS-ID match, case report (populated / empty / tampered ×6 kinds / wrong key / missing key / read-only byte-compare / markup + non-ASCII escaping / hash cross-check / truncation / pagination); it also runs the two JS suites below |
 | `node --test extension/tests` | 36 | download hashing/size cap/fallbacks/payload privacy, list parser + matcher against fixtures **and the real bundled lists**, snapshot manifest hashes, tab-session logic, canvas hook (fake canvas classes) |
-| `npm test` in `dashboard/` | 21 | derived views, evidence-export hash, verify green/red/error rendering, export flow, API paging (component tests use a mocked API; charts are stubbed) |
+| `npm test` in `dashboard/` | 28 | derived views, evidence-export hash, verify green/red/error rendering, export flow, API paging, and the case-report form (disabled until filled, trimmed inputs, download + hash display, error path); component tests use a mocked API and charts are stubbed |
 
 **Run by hand against the real thing**
 
@@ -711,9 +759,11 @@ a test fails if a snapshot is edited without rebuilding.
   tightened CORS; *Verify* showed green on a clean DB and red ("first broken entry #2") after editing a row
   with `sqlite3`; the exported file's displayed SHA-256 equals `shasum -a 256` of the file Chrome saved.
 - Every command in `docs/demo_script.md` that has a curl/CLI fallback was run (steps 2, 3, 4, 5).
+- **Case report in real Chrome:** the dashboard's *Generate case report* button was driven in headless Chrome against a live backend, on a clean and on a tampered log. The downloaded PDF has the expected banner; the hash displayed in the UI = the PDF footer text = `shasum -a 256` of `format=json`. The PDFs were also rendered to images and inspected (macOS `sips`).
 
 **Not tested**
 
+- **PDF rendering outside macOS**: the reports were viewed through macOS's renderer and text-extracted with `pypdf`, not in Acrobat, Chrome's PDF viewer, or on Windows/Linux. Reports of very large logs (beyond a few thousand entries) were not timed.
 - The extension's **popup UI and desktop notifications** were never seen on a real screen (headless run;
   the popup's data path is covered, its rendering is not). Likewise the demo script's live-browser steps
   (1, 3-live, 4-live) were not performed on real websites.
@@ -742,6 +792,8 @@ backend/
       file_heuristics.py, file_analyzer.py   filename/MIME rules + verdict
       tracker_store.py            tracker sessions, aggregation, forensic hook
       forensic_log.py             hash chain + HMAC + signed head + verify
+      case_report.py              PDF / JSON case report (read-only)
+    version.py                    tool name + version printed on reports
     db/database.py                SQLite location
     models/phishing_model.pkl     trained bundle (gitignored)
   ml/                             data_loader, train_model, evaluate, metrics_report.md, ood_checkset.csv

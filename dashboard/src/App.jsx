@@ -31,6 +31,7 @@ export default function App({ api: injected }) {
 
   const entries = data.entries ?? [];
   const sum = useMemo(() => summarize(entries), [entries]);
+  const caseIds = useMemo(() => [...new Set(entries.map((e) => e.case_id))].sort(), [entries]);
 
   return (
     <div className="page">
@@ -65,7 +66,7 @@ export default function App({ api: injected }) {
           </section>
           {data.truncated && <p className="muted">Showing the oldest {entries.length} of {data.total} log entries.</p>}
 
-          <IntegrityPanel api={api} onVerified={(r) => setBrokenId(r && !r.valid ? r.first_broken_id : null)} />
+          <IntegrityPanel api={api} caseIds={caseIds} onVerified={(r) => setBrokenId(r && !r.valid ? r.first_broken_id : null)} />
 
           <section className="card"><h2>Risk timeline</h2>
             <Timeline points={timelinePoints(entries)} />
