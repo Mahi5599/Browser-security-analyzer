@@ -1,0 +1,54 @@
+{
+  "generated_utc": "2026-10-25T10:21:20.843Z",
+  "license": "GPLv3+ / CC BY-SA 3.0 (dual-licensed by the EasyList authors)",
+  "lists": [
+    {
+      "name": "easylist",
+      "purpose": "ads and ad-tech",
+      "source": "https://easylist.to/easylist/easylist.txt",
+      "downloaded": "2026-10-25",
+      "list_version": "202610251011",
+      "last_modified": "25 Oct 2026 10:11 UTC",
+      "bytes": 2245100,
+      "sha256": "afc22520a09013dc2c5d45ab577ddca3c24b5eb3dcbcb08b6d1febbc35cffaa0",
+      "rules_compiled": 55303,
+      "rules_skipped": {
+        "url-substring": 899,
+        "regex": 494,
+        "host-wildcard-or-single-label": 37,
+        "cosmetic": 24706,
+        "popup-or-document": 3461,
+        "separator-in-path": 1,
+        "domain-option": 401,
+        "wildcard-path": 119,
+        "unsupported-option": 169,
+        "first-party-only": 201,
+        "path-exception": 73,
+        "restricted-exception": 3
+      }
+    },
+    {
+      "name": "easyprivacy",
+      "purpose": "trackers, analytics, fingerprinting",
+      "source": "https://easylist.to/easylist/easyprivacy.txt",
+      "downloaded": "2026-10-25",
+      "list_version": "202610251018",
+      "last_modified": "25 Oct 2026 10:18 UTC",
+      "bytes": 1511185,
+      "sha256": "df12d1813400347ce60c61dd99af51b715ed94e110366e6ab3c3b42ca71c6158",
+      "rules_compiled": 51417,
+      "rules_skipped": {
+        "url-substring": 2340,
+        "regex": 1124,
+        "host-wildcard-or-single-label": 82,
+        "wildcard-path": 380,
+        "domain-option": 607,
+        "unsupported-option": 32,
+        "first-party-only": 290,
+        "cosmetic": 37,
+        "path-exception": 91,
+        "restricted-exception": 6
+      }
+    }
+  ]
+}

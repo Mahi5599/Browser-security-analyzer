@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Browser Security Analyzer",
   "short_name": "BSA",
-  "version": "0.2.0",
-  "description": "Flags phishing sites in real time as you browse. Backend-scored, explainable verdicts.",
+  "version": "0.5.0",
+  "description": "Flags phishing sites, malicious downloads and third-party tracking as you browse. Backend-scored, explainable verdicts.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -24,16 +24,52 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content-script.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content-script.js"
+      ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "tracker-content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "canvas-hook.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
     }
   ],
-  "permissions": ["activeTab", "tabs", "storage"],
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "downloads",
+    "notifications",
+    "webRequest"
+  ],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*",
     "http://*/*",
     "https://*/*"
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2Ul6VG1YXHIakn7fudWeuJj74VyzYBzLVRgFVyxLmSFMMAWMyDoPzdE8X+hmigAVUBq0lYgNX3wbjbCpAFQ4xEeLCJWb7MuV7dzCJDWWA4QD9eTsl5Ib/Y+nhCGO/VmpgkPrz0S2jI3VPUhq7nYgn8mDU3xvyuexpuwwoM53VLQ0TgcKjLWjaUWD1dNyQgFcHSrzn8YEhAd1tOdPih4dqUUkvzdUJqo2FE8N2q7IhOPZnhEEkpBgQsUHlVK47/xMWJqDqmnEv8szrfl1B08nO1VRLKkTY7kBL0kcNWJItxkkRrnM0SQhRCGj1ARetErdG7kGUI4+Gai7IOHGinWgywIDAQAB"
 }

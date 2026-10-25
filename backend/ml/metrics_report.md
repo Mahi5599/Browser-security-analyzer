@@ -1,7 +1,7 @@
 # Phishing URL Classifier — Metrics Report
 
 - **Model:** RandomForestClassifier (200 trees, max_depth=24)
-- **Trained at:** 2026-09-10T09:57:26.847428Z
+- **Trained at:** 2026-10-25T10:11:56.539306Z
 - **Dataset source:** UCI PhiUSIIL Phishing URL Dataset (id=967) + benign path/scheme augmentation
 - **Total URLs:** 200000  (train 160000 / test 40000)
 - **Class balance (all):** {1: 100000, 0: 100000}  (1 = phishing, 0 = benign)

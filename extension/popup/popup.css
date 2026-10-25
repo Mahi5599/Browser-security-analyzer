@@ -83,6 +83,21 @@ main {
 .meta dt { font-weight: 600; }
 .meta dd { margin: 0; }
 
+#trackers, #downloads { padding: 0 16px 8px; }
+#trackers h2 { font-size: 12px; margin: 0 0 6px; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+.tracker-summary { margin: 0; font-size: 13.5px; }
+.flags { list-style: none; margin: 8px 0 0; padding: 0; }
+.flag { background: #fee2e2; color: #991b1b; border-radius: 4px; padding: 4px 8px; margin-top: 4px; font-size: 12px; }
+#downloads h2 { font-size: 12px; margin: 0 0 6px; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+.downloads { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+.downloads li { padding: 6px 0; border-top: 1px solid #e5e7eb; }
+.dl-name { font-weight: 600; word-break: break-all; margin-right: 6px; }
+.dl-badge { float: right; padding: 1px 6px; border-radius: 4px; color: #fff; font-size: 11px; white-space: nowrap; }
+.dl-benign { background: #16a34a; }
+.dl-suspicious { background: #f59e0b; }
+.dl-malicious { background: #dc2626; }
+.dl-pending { background: #9ca3af; }
+
 footer {
   padding: 10px 16px 16px;
 }

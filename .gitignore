@@ -31,3 +31,8 @@ backend/ml/dataset/sample_urls.csv
 
 # OS
 .DS_Store
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env
